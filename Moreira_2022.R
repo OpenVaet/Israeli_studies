@@ -25,7 +25,7 @@ cat("Image size:", width, "x", height, "\n")
 df <- as.data.frame(img, wide = "c") 
 
 # The original coordinate system has y increasing from TOP to BOTTOM.
-# We invert the y if we want y=0 at the bottom:
+# We invert the y as we want y=0 at the bottom:
 df$y <- height - df$y
 
 # ----------------------------
@@ -40,8 +40,8 @@ color_distance <- function(pixel, ref) {
 }
 
 # Chooses distance thresholds that reliably pick out the lines
-threshold_blue   <- 0.15  # adjust as needed
-threshold_orange <- 0.15  # adjust as needed
+threshold_blue   <- 0.15
+threshold_orange <- 0.15
 
 # Creates a function to label each pixel as "blue", "orange", or "bg"
 df <- df %>%

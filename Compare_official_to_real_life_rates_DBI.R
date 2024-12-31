@@ -5,19 +5,19 @@ library(dplyr)
 #  Reads & Combines the data
 # ----------------------------------------------------------------------------
 
-# 1. Reads the CSV files
+# Reads the CSV files
 dagan_2021          <- read.csv("dagan_2021.csv", header = TRUE)
 magen_2022          <- read.csv("magen_2022.csv", header = TRUE)
 moreira_2_doses     <- read.csv("moreira_2022_2_doses.csv", header = TRUE)
 moreira_3_doses     <- read.csv("moreira_2022_3_doses.csv", header = TRUE)
 
-# 2. Assigns labels for each dataset
+# Assigns labels for each dataset
 dagan_2021$Group      <- "Dagan (0 dose)"
 magen_2022$Group      <- "Magen (3 doses)"
 moreira_2_doses$Group <- "Moreira (2 doses)"
 moreira_3_doses$Group <- "Moreira (3 doses)"
 
-# 3. Combines all data into one data frame
+# Combines all data into one data frame
 all_data <- bind_rows(
   dagan_2021,
   magen_2022,
@@ -100,7 +100,7 @@ for(g in groups_of_interest) {
                            ))
 }
 
-# Average the fraction across the two groups
+# Averages the fraction across the two groups
 avg_fractions <- colMeans(group_fractions[, c("frac_0_7", "frac_7_14", "frac_14_21", "frac_21_28")], na.rm = TRUE)
 
 # ----------------------------------------------------------------------------
@@ -144,68 +144,154 @@ bar_on_inferred <- data.frame(
 
 all_data_including_baron <- bind_rows(all_data, bar_on_inferred)
 
-ggplot(
-  all_data_including_baron,
-  aes(
-    x = Day,
-    y = CumulativeIncidenceRate,
-    color = Group,
-    linetype = Group
+# Creates a new column "StudyType" to label 'Advertised' vs 'Real World'
+all_data_including_baron <- all_data_including_baron %>%
+  mutate(
+    Legend = case_when(
+      Group == "Moreira (2 doses)" ~ "Advertised: Moreira (2 doses)",
+      Group == "Moreira (3 doses)" ~ "Advertised: Moreira (3 doses)",
+      Group == "Dagan (0 dose)"    ~ "Real World: Dagan (0 dose)",
+      Group == "Bar-On (2 doses)"  ~ "Real World: Bar-On (2 doses)",
+      Group == "Magen (3 doses)"   ~ "Real World: Magen (3 doses)"
+    )
+  )
+
+# Makes sure these factor levels are in the order we want them to appear in the legend
+desired_levels <- c(
+  "Advertised", 
+  "Advertised: Moreira (2 doses)",
+  "Advertised: Moreira (3 doses)",
+  "Real World",
+  "Real World: Dagan (0 dose)",
+  "Real World: Bar-On (2 doses)",
+  "Real World: Magen (3 doses)"
+)
+all_data_including_baron$Legend <- factor(all_data_including_baron$Legend, 
+                                          levels = desired_levels)
+
+# Creates DUMMY rows for "Advertised" and "Real World":
+dummy <- data.frame(
+  Day = NA,  # or 0, doesn't matter since it won't be drawn
+  CumulativeIncidenceRate = NA,
+  Group = NA,    # no real group
+  Legend = c("Advertised", "Real World")
+)
+# Make sure they match the factor levels
+dummy$Legend <- factor(dummy$Legend, levels = desired_levels)
+
+# Bind them in
+plot_df <- bind_rows(all_data_including_baron, dummy)
+
+#------------------------------------------------------------
+#    Now maps:
+#    aes(color = Legend, linetype = Legend)
+#    so that each distinct factor level 
+#    gets its own color + line type in the legend.
+#------------------------------------------------------------
+ggplot(plot_df, 
+       aes(x = Day, y = CumulativeIncidenceRate, 
+           color = Legend, linetype = Legend)) +
+  geom_line(size = 1.2, na.rm = TRUE) + 
+  geom_point(size = 2, na.rm = TRUE) +
+  
+  #----------------------------------------------------------
+#    Defines custom scale_*_manual with the EXACT same 'breaks' 
+#    and matching 'labels' so we can label them like subheadings.
+#    For "Advertised" & "Real World", we assign 'blank' linetype
+#    or a color that won't appear on the plot (or override later).
+#----------------------------------------------------------
+scale_color_manual(
+  name = NULL,  # no main title for the legend
+  breaks = desired_levels,
+  values = c(
+    # sub-headings -> 'black' or anything, we will override
+    "Advertised" = "black",
+    "Advertised: Moreira (2 doses)" = "orange",
+    "Advertised: Moreira (3 doses)" = "blue",
+    "Real World" = "black",
+    "Real World: Dagan (0 dose)" = "red",
+    "Real World: Bar-On (2 doses)" = "orange",
+    "Real World: Magen (3 doses)" = "blue"
+  ),
+  labels = c(
+    "Advertised" = "Advertised",
+    "Advertised: Moreira (2 doses)" = "   Moreira (2 doses)",
+    "Advertised: Moreira (3 doses)" = "   Moreira (3 doses)",
+    "Real World" = "Real World",
+    "Real World: Dagan (0 dose)" = "   Dagan (0 dose)",
+    "Real World: Bar-On (2 doses)" = "   Bar-On (2 doses)",
+    "Real World: Magen (3 doses)" = "   Magen (3 doses)"
   )
 ) +
-  # Lines
-  geom_line(size = 2) +
+  scale_linetype_manual(
+    name = NULL,
+    breaks = desired_levels,
+    values = c(
+      "Advertised" = "blank",  # sub-heading => no line
+      "Advertised: Moreira (2 doses)" = "solid",
+      "Advertised: Moreira (3 doses)" = "solid",
+      "Real World" = "blank",  # sub-heading => no line
+      "Real World: Dagan (0 dose)" = "dashed",
+      "Real World: Bar-On (2 doses)" = "dashed",
+      "Real World: Magen (3 doses)" = "dashed"
+    ),
+    labels = c(
+      "Advertised" = "Advertised",
+      "Advertised: Moreira (2 doses)" = "   Moreira (2 doses)",
+      "Advertised: Moreira (3 doses)" = "   Moreira (3 doses)",
+      "Real World" = "Real World",
+      "Real World: Dagan (0 dose)" = "   Dagan (0 dose)",
+      "Real World: Bar-On (2 doses)" = "   Bar-On (2 doses)",
+      "Real World: Magen (3 doses)" = "   Magen (3 doses)"
+    )
+  ) +
   
-  # Points
-  geom_point(size = 4) +
+  #----------------------------------------------------------
+#    Overrides the legend so that "Advertised" and "Real World" 
+#    entries have no lines/points displayed.  They act 
+#    like headings for the subsequent items.
+#----------------------------------------------------------
+guides(
+  color = guide_legend(
+    # Makes each legend key wider, so the dashed line is clearly displayed
+    keywidth = 3,  # You can bump this up to 3 or 4 if needed
+    override.aes = list(
+      # We have 7 factor levels => 7 overrides
+      linetype = c("blank", "solid", "solid", "blank", 
+                   "dashed", "dashed", "dashed"),
+      shape    = c(NA, NA, NA, NA, NA, NA, NA),
+      # 2) Increase the line "size" to make the dashes thicker
+      size     = c(0, 1.2, 1.2, 0, 1.2, 1.2, 1.2)
+    )
+  ),
+  linetype = guide_legend(
+    keywidth = 2,
+    override.aes = list(
+      shape    = c(NA, NA, NA, NA, NA, NA, NA),
+      size     = c(0, 1.2, 1.2, 0, 1.2, 1.2, 1.2)
+    )
+  )
+) +
   
-  # Data labels
   geom_text(
+    data = subset(plot_df, !is.na(Day)),   # or use dplyr: filter(!is.na(Day))
     aes(label = round(CumulativeIncidenceRate, 2)),
     vjust = -0.5,
     size = 5,
     show.legend = FALSE
-  ) +
+  )+
   
-  # COLORS: match 2 doses vs. 3 doses
-  scale_color_manual(
-    values = c(
-      "Moreira (3 doses)" = "darkblue",
-      "Moreira (2 doses)" = "orange",
-      "Dagan (0 dose)"    = "red",
-      "Magen (3 doses)"   = "darkblue",
-      "Bar-On (2 doses)"  = "orange"
-    )
-  ) +
-  
-  # LINE TYPES: 3 doses vs. 2 doses vs. 0 dose
-  scale_linetype_manual(
-    values = c(
-      "Moreira (3 doses)" = "solid",   # darkblue
-      "Moreira (2 doses)" = "solid",   # orange
-      "Dagan (0 dose)"    = "dashed",  # red
-      "Magen (3 doses)"   = "dashed",  # darkblue
-      "Bar-On (2 doses)"  = "dashed"   # orange
-    )
-  ) +
-  
-  # Axis and legend labels
-  labs(
-    title    = "Cumulative Incidence Rate / 100,000 Person-days Over Time",
-    x        = "Day",
-    y        = "Cumulative Incidence Rate (log10)",
-    color    = "Study & Dose Group",
-    linetype = "Study & Dose Group"
-  ) +
-  
-  theme_minimal(base_size = 20) +
+  #----------------------------------------------------------
+# Then usual labels & theme
+#----------------------------------------------------------
+labs(
+  title = "Cumulative Incidence Rate / 100,000 Person-days Over Time",
+  x = "Day",
+  y = "Cumulative Incidence Rate (log10)"
+) +
+  theme_minimal(base_size = 18) +
   theme(
-    plot.title      = element_text(face = "bold", hjust = 0.5, size = 35),
-    legend.position = "bottom",
-    legend.text     = element_text(size = 20),
-    legend.title    = element_text(size = 22),
-    axis.title      = element_text(size = 20),
-    axis.text       = element_text(size = 18)
+    plot.title      = element_text(face = "bold", hjust = 0.5, size = 20),
+    legend.position = "right"
   ) +
-  
   scale_y_log10()
