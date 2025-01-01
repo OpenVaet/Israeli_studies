@@ -35,11 +35,11 @@ p <- ggplot(df, aes(x = StudyVaxGroup, y = IncidenceRate)) +
     title = "Infection Rates per 100,000 person-days, by Study and Vaccination Group"
   ) +
   theme(
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 20),
-    axis.text.x = element_text(angle = 30, hjust = 1, size = 14),  # Slant x-axis labels if needed
-    axis.text.y = element_text(size = 14),
-    axis.title.x = element_text(size = 16),
-    axis.title.y = element_text(size = 16)
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 22),
+    axis.text.x = element_text(angle = 30, hjust = 1, size = 18),  # Slant x-axis labels if needed
+    axis.text.y = element_text(size = 16),
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18)
   )
 
 # Prints the plot
